@@ -10,6 +10,7 @@ OUTPUT_DIR="$ROOT_DIR/outputs"
 APP_BUNDLE="$OUTPUT_DIR/$APP_NAME.app"
 APP_CONTENTS="$APP_BUNDLE/Contents"
 APP_MACOS="$APP_CONTENTS/MacOS"
+APP_RESOURCES="$APP_CONTENTS/Resources"
 APP_BINARY="$APP_MACOS/$APP_NAME"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
 
@@ -22,9 +23,10 @@ HELPER_BINARY="$ROOT_DIR/.build/mtp-helper"
 clang Tools/mtp-helper.c -I/usr/local/include -L/usr/local/lib -lmtp -lusb-1.0 -o "$HELPER_BINARY"
 
 rm -rf "$APP_BUNDLE"
-mkdir -p "$APP_MACOS"
+mkdir -p "$APP_MACOS" "$APP_RESOURCES"
 cp "$BUILD_BINARY" "$APP_BINARY"
 cp "$HELPER_BINARY" "$APP_MACOS/mtp-helper"
+cp "$ROOT_DIR/Assets/AppIcon.icns" "$APP_RESOURCES/AppIcon.icns"
 chmod +x "$APP_BINARY"
 chmod +x "$APP_MACOS/mtp-helper"
 
@@ -39,6 +41,8 @@ cat >"$INFO_PLIST" <<PLIST
   <string>$BUNDLE_ID</string>
   <key>CFBundleName</key>
   <string>$APP_NAME</string>
+  <key>CFBundleIconFile</key>
+  <string>AppIcon</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>LSMinimumSystemVersion</key>

@@ -39,3 +39,5 @@ brew install libmtp
 ## 许可证
 
 项目源码使用 MIT License，不包含 Nintendo、DBI、libmtp 或 libusb 的源码。第三方运行时依赖遵循其各自上游许可证。
+
+应用图标为本项目生成的原创视觉资产，随源码以 `Assets/AppIcon.icns` 发布。
