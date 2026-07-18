@@ -2,8 +2,8 @@
 set -euo pipefail
 
 MODE="${1:-run}"
-APP_NAME="SwitchMTPBridge"
-BUNDLE_ID="local.codex.SwitchMTPBridge"
+APP_NAME="MTPFileTransfer"
+BUNDLE_ID="local.codex.MTPFileTransfer"
 MIN_SYSTEM_VERSION="13.0"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -19,7 +19,7 @@ cd "$ROOT_DIR"
 pkill -x "$APP_NAME" >/dev/null 2>&1 || true
 
 swift build
-BUILD_BINARY="$(swift build --show-bin-path)/$APP_NAME"
+BUILD_BINARY="$(swift build --show-bin-path)/SwitchMTPBridge"
 HELPER_BINARY="$ROOT_DIR/.build/mtp-helper"
 
 clang Tools/mtp-helper.c -I/usr/local/include -L/usr/local/lib -lmtp -lusb-1.0 -o "$HELPER_BINARY"

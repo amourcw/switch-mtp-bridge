@@ -4,114 +4,50 @@ struct TransferQueueView: View {
     @ObservedObject var store: MTPStore
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("传输队列")
-                    .font(.headline)
-
+                Text("传输队列").font(.headline)
                 Spacer()
-
-                Button {
-                    store.clearCompleted()
-                } label: {
-                    Label("清除已完成", systemImage: "checkmark.circle")
-                }
-                .disabled(!store.transfers.contains { $0.status == .completed })
+                Button { Task { await store.runQueuedTransfers() } } label: { Image(systemName: "play.fill") }
+                    .help("开始或重试传输")
+                    .disabled(store.isBusy || !store.transfers.contains { $0.status == .queued })
+                Button { store.clearCompleted() } label: { Image(systemName: "checkmark.circle") }
+                    .help("清除已完成")
+                    .disabled(!store.transfers.contains { $0.status == .completed })
             }
-
             if store.transfers.isEmpty {
-                EmptyQueueView()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                VStack(spacing: 8) {
+                    Image(systemName: "arrow.left.arrow.right").font(.title2).foregroundStyle(.secondary)
+                    Text("没有待传输项目").foregroundStyle(.secondary)
+                }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 Table(store.transfers) {
-                    TableColumn("文件") { item in
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(item.fileName)
-                                .lineLimit(1)
-                            Text(item.fileURL.path)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        }
-                    }
-
-                    TableColumn("目标存储区") { item in
-                        Text(item.storageName)
-                            .font(.callout.monospaced())
-                            .lineLimit(1)
-                    }
-
-                    TableColumn("状态") { item in
-                        StatusBadge(status: item.status)
-                    }
-
+                    TableColumn("项目") { item in Text(item.sourceName).lineLimit(1) }
+                    TableColumn("方向") { item in Text(item.direction.title).foregroundStyle(.secondary) }.width(105)
+                    TableColumn("目标") { item in Text(item.destinationName).lineLimit(1).foregroundStyle(.secondary) }
+                    TableColumn("状态") { item in StatusBadge(status: item.status) }.width(82)
                     TableColumn("") { item in
-                        Button {
-                            store.removeTransfer(item)
-                        } label: {
-                            Image(systemName: "trash")
-                        }
-                        .buttonStyle(.borderless)
-                        .help("移除")
-                    }
-                    .width(44)
+                        Button { store.removeTransfer(item) } label: { Image(systemName: "trash") }
+                            .buttonStyle(.borderless).help("移除")
+                    }.width(36)
                 }
             }
         }
-        .padding(20)
-    }
-}
-
-private struct EmptyQueueView: View {
-    var body: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "tray")
-                .font(.system(size: 34))
-                .foregroundStyle(.secondary)
-
-            Text("还没有添加文件")
-                .font(.headline)
-
-            Text("添加 NSP、NSZ、XCI 或其他要发送到 DBI 的文件。")
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding()
+        .padding(14)
     }
 }
 
 private struct StatusBadge: View {
     var status: TransferStatus
-
     var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: iconName)
-            Text(status.title)
-        }
-        .foregroundStyle(foregroundStyle)
+        HStack(spacing: 5) { Image(systemName: icon); Text(status.title) }
+            .foregroundStyle(color)
     }
-
-    private var iconName: String {
-        switch status {
-        case .queued:
-            return "clock"
-        case .running:
-            return "arrow.up.circle"
-        case .completed:
-            return "checkmark.circle"
-        case .failed:
-            return "xmark.octagon"
-        }
+    private var icon: String {
+        switch status { case .queued: return "clock"; case .running: return "arrow.triangle.2.circlepath"; case .completed: return "checkmark.circle"; case .failed: return "xmark.octagon" }
     }
-
-    private var foregroundStyle: Color {
-        switch status {
-        case .queued, .running:
-            return .secondary
-        case .completed:
-            return .green
-        case .failed:
-            return .red
-        }
+    private var color: Color {
+        switch status { case .completed: return .green; case .failed: return .red; default: return .secondary }
     }
 }

@@ -33,6 +33,13 @@ enum MTPHelperParser {
                 )
             }
     }
+
+    static func folderID(from output: String) -> UInt32? {
+        output.components(separatedBy: .newlines).compactMap { line in
+            let parts = line.components(separatedBy: "\t")
+            return parts.count == 2 && parts[0] == "FOLDER" ? UInt32(parts[1]) : nil
+        }.first
+    }
 }
 
 enum ByteCountText {

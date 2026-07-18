@@ -4,25 +4,18 @@ struct DetailView: View {
     @ObservedObject var store: MTPStore
 
     var body: some View {
-        VStack(spacing: 0) {
-            ConnectionHeaderView(store: store)
-
-            Divider()
-
-            FileBrowserView(store: store)
-                .frame(minHeight: 170)
-
-            Divider()
+        VSplitView {
+            VStack(spacing: 0) {
+                ConnectionHeaderView(store: store)
+                Divider()
+                FileBrowserView(store: store)
+            }
+            .frame(minHeight: 360)
 
             TransferQueueView(store: store)
-                .frame(minHeight: 240)
-
-            Divider()
-
-            LogView(lines: store.logLines)
-                .frame(minHeight: 160)
+                .frame(minHeight: 150, idealHeight: 210)
         }
-        .navigationTitle("Switch MTP 助手")
+        .navigationTitle("MTP 文件传输")
     }
 }
 
@@ -30,92 +23,34 @@ private struct ConnectionHeaderView: View {
     @ObservedObject var store: MTPStore
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Nintendo Switch DBI 传输")
-                        .font(.title2.weight(.semibold))
-                    Text(statusText)
-                        .foregroundStyle(.secondary)
-                }
+        HStack(spacing: 14) {
+            Image(systemName: store.device == nil ? "cable.connector.slash" : "externaldrive.connected.to.line.below")
+                .font(.title2)
+                .foregroundStyle(store.device == nil ? Color.secondary : Color.accentColor)
 
-                Spacer()
-
-                if store.isBusy {
-                    ProgressView()
-                        .controlSize(.small)
-                }
+            VStack(alignment: .leading, spacing: 3) {
+                Text(store.device == nil ? "等待 MTP 设备" : "MTP 设备已连接")
+                    .font(.headline)
+                Text(store.device?.summary.components(separatedBy: .newlines).first ?? "插入手机、相机、播放器或已开启 MTP 模式的 Switch 后点击刷新。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
 
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("目标存储区")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Picker("目标存储区", selection: $store.selectedStorageID) {
-                        if store.storages.isEmpty {
-                            Text("未读取到存储区").tag("")
-                        } else {
-                            ForEach(store.storages) { storage in
-                                Text(storage.displayName).tag(storage.id)
-                            }
-                        }
-                    }
-                    .labelsHidden()
-                    .frame(maxWidth: 360)
-                    .onChange(of: store.selectedStorageID) { _ in
-                        Task { await store.refreshFiles() }
-                    }
-                    Text(storageHint)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .frame(maxWidth: 360)
+            Spacer()
+
+            Picker("设备存储区", selection: $store.selectedStorageID) {
+                Text("未检测到存储区").tag("")
+                ForEach(store.storages) { storage in
+                    Text(storage.displayName).tag(storage.id)
                 }
-
-                Spacer()
-
-                Button {
-                    store.copyInstallCommand()
-                } label: {
-                    Label("复制安装命令", systemImage: "doc.on.doc")
-                }
-                .disabled({
-                    if case .missing = store.toolStatus { return false }
-                    return true
-                }())
             }
-
-            if let device = store.device {
-                Text(device.summary)
-                    .font(.callout.monospaced())
-                    .textSelection(.enabled)
-                    .padding(10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
-            }
+            .labelsHidden()
+            .frame(width: 250)
+            .disabled(store.storages.isEmpty || store.isBusy)
+            .onChange(of: store.selectedStorageID) { value in store.selectStorage(value) }
         }
-        .padding(20)
-    }
-
-    private var statusText: String {
-        if store.device != nil {
-            return "DBI 已连接。添加文件后即可通过 libmtp 上传。"
-        }
-
-        if let lastRefreshDate = store.lastRefreshDate {
-            let formatted = lastRefreshDate.formatted(date: .omitted, time: .standard)
-            return "正在等待 DBI MTP 响应器。上次扫描：\(formatted)。"
-        }
-
-        return "正在等待 DBI MTP 响应器。"
-    }
-
-    private var storageHint: String {
-        guard let storage = store.storages.first(where: { $0.id == store.selectedStorageID }) else {
-            return "连接 DBI 后会显示可用存储区"
-        }
-
-        return "可用 \(ByteCountText.string(from: storage.freeBytes)) / 总计 \(ByteCountText.string(from: storage.capacityBytes))"
+        .padding(.horizontal, 18)
+        .padding(.vertical, 12)
     }
 }

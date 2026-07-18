@@ -34,7 +34,7 @@ struct MTPStorage: Identifiable, Equatable, Hashable {
     }
 }
 
-struct MTPFileItem: Identifiable, Equatable {
+struct MTPFileItem: Identifiable, Equatable, Hashable {
     var id: UInt32
     var parentID: UInt32
     var storageID: String
@@ -47,16 +47,40 @@ struct MTPFileItem: Identifiable, Equatable {
     }
 }
 
+struct LocalFileItem: Identifiable, Hashable {
+    var url: URL
+    var isDirectory: Bool
+    var sizeBytes: UInt64
+    var modifiedDate: Date?
+
+    var id: URL { url }
+    var name: String { url.lastPathComponent }
+}
+
+enum TransferDirection: Equatable {
+    case upload
+    case download
+
+    var title: String {
+        switch self {
+        case .upload: return "上传到设备"
+        case .download: return "下载到本机"
+        }
+    }
+}
+
+enum TransferOperation: Equatable {
+    case upload(localURL: URL, storageID: String, parentID: UInt32)
+    case download(file: MTPFileItem, destinationURL: URL)
+}
+
 struct TransferItem: Identifiable, Equatable {
     let id = UUID()
-    let fileURL: URL
-    var storageID: String
-    var storageName: String
+    var direction: TransferDirection
+    var sourceName: String
+    var destinationName: String
+    var operation: TransferOperation
     var status: TransferStatus = .queued
-
-    var fileName: String {
-        fileURL.lastPathComponent
-    }
 }
 
 enum TransferStatus: Equatable {

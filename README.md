@@ -1,51 +1,41 @@
-# Switch MTP 助手
+# MTP 文件传输
 
-一个适配 Intel Mac 的 macOS SwiftUI 应用，用来通过 Nintendo Switch DBI 的 MTP 响应器传输文件。
+适配 Intel Mac 的双栏 macOS 文件传输应用。左侧浏览本机目录，右侧浏览任意兼容 MTP 的设备目录，可在两侧之间复制文件或文件夹。
 
-## 环境要求
+兼容目标包括 Android 手机、相机、播放器，以及开启 MTP 响应器的 Nintendo Switch DBI。DBI 的 `SD Card install` 会在可用时作为默认存储区，仍可从顶部菜单切换到其他存储区。
+
+## 使用前准备
 
 - macOS 13 或更新版本
 - Homebrew
-- libmtp 命令行工具
-
-安装 libmtp：
+- `libmtp`
 
 ```bash
 brew install libmtp
 ```
 
-在 Intel Mac 上，Homebrew 通常会把工具安装到 `/usr/local/bin`。应用也会检查 `/opt/homebrew/bin`，方便以后迁移到 Apple silicon。
+插入设备并在设备端开启 MTP 模式后，打开应用并点击工具栏的刷新按钮。选择顶部的设备存储区后，即可双击文件夹进入目录；选择项目后，使用底部的方向按钮即可传输。传输会显示在底部队列，失败项目可用播放按钮重试。
 
-## Switch 设置
+## Switch DBI
 
 1. 用 USB 连接 Switch 和 Mac。
-2. 打开 DBI。
-3. 启动 DBI 的 MTP 响应器。
-4. 在应用里点击“刷新”。
-5. 在“目标存储区”选择位置。安装游戏通常选“5: SD Card install”。
-6. 在“设备文件”里查看当前存储区内容。
-7. 添加文件并上传。
+2. 在 DBI 中启动 MTP Responder。
+3. 刷新应用，顶部选择 `SD Card install` 以安装文件，或选择其他存储区浏览文件。
 
-## 构建和运行
+## 构建
 
 ```bash
 ./script/build_and_run.sh
 ```
 
-脚本会构建 SwiftPM 可执行文件，生成 `dist/SwitchMTPBridge.app`，并以普通 macOS 应用方式启动。
-
-## Release 打包
+运行后会生成 `dist/MTPFileTransfer.app`。发布打包：
 
 ```bash
 ./script/package_app.sh
 ```
 
-打包结果会生成到 `outputs/SwitchMTPBridge.app`。当前 release 版 helper 会动态链接 Homebrew 安装的 `libmtp` 和 `libusb`，使用前仍需安装 `libmtp`。
+会生成 `outputs/MTPFileTransfer.app`。应用运行时动态链接 Homebrew 的 `libmtp` 与 `libusb`，因此目标 Mac 也需要先执行 `brew install libmtp`。
 
-## 许可证和第三方依赖
+## 许可证
 
-本项目源码使用 MIT License。项目不包含 Nintendo、DBI、libmtp 或 libusb 的源码。
-
-- `libmtp` 由 Homebrew 安装并在运行时动态链接，遵循其上游许可证。
-- `libusb` 由 Homebrew 作为依赖安装并在运行时动态链接，遵循其上游许可证。
-- Nintendo Switch、DBI、MTP responder 等名称仅用于描述兼容目标。
+项目源码使用 MIT License，不包含 Nintendo、DBI、libmtp 或 libusb 的源码。第三方运行时依赖遵循其各自上游许可证。

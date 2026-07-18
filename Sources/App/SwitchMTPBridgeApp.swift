@@ -14,9 +14,9 @@ struct SwitchMTPBridgeApp: App {
     @StateObject private var store = MTPStore()
 
     var body: some Scene {
-        WindowGroup("Switch MTP 助手") {
+        WindowGroup("MTP 文件传输") {
             ContentView(store: store)
-                .frame(minWidth: 900, minHeight: 600)
+                .frame(minWidth: 980, minHeight: 640)
         }
         .commands {
             CommandGroup(after: .newItem) {
@@ -25,10 +25,10 @@ struct SwitchMTPBridgeApp: App {
                 }
                 .keyboardShortcut("r", modifiers: [.command])
 
-                Button("上传文件...") {
-                    store.presentFilePicker()
+                Button("选择本地目录...") {
+                    store.chooseLocalDirectory()
                 }
-                .keyboardShortcut("u", modifiers: [.command])
+                .keyboardShortcut("o", modifiers: [.command])
             }
         }
 

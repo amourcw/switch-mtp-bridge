@@ -29,12 +29,20 @@ struct MTPCommandService {
         await runHelper(arguments: ["list-storages"])
     }
 
-    func listFiles(storageID: String) async -> ProcessResult {
-        await runHelper(arguments: ["list-files", storageID])
+    func listFiles(storageID: String, parentID: UInt32 = 0) async -> ProcessResult {
+        await runHelper(arguments: ["list-files", storageID, String(parentID)])
     }
 
-    func sendFile(localURL: URL, storageID: String, remoteName: String) async -> ProcessResult {
-        await runHelper(arguments: ["send-file", localURL.path, storageID, remoteName])
+    func sendFile(localURL: URL, storageID: String, remoteName: String, parentID: UInt32) async -> ProcessResult {
+        await runHelper(arguments: ["send-file", localURL.path, storageID, remoteName, String(parentID)])
+    }
+
+    func receiveFile(itemID: UInt32, destinationURL: URL) async -> ProcessResult {
+        await runHelper(arguments: ["get-file", String(itemID), destinationURL.path])
+    }
+
+    func createFolder(name: String, storageID: String, parentID: UInt32) async -> ProcessResult {
+        await runHelper(arguments: ["create-folder", storageID, String(parentID), name])
     }
 
     private func runHelper(arguments: [String]) async -> ProcessResult {

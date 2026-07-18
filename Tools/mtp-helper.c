@@ -8,8 +8,10 @@
 static void print_usage(void) {
   fprintf(stderr, "用法:\n");
   fprintf(stderr, "  mtp-helper list-storages\n");
-  fprintf(stderr, "  mtp-helper list-files <storage-id-hex>\n");
-  fprintf(stderr, "  mtp-helper send-file <local-path> <storage-id-hex> <remote-name>\n");
+  fprintf(stderr, "  mtp-helper list-files <storage-id-hex> [parent-id]\n");
+  fprintf(stderr, "  mtp-helper send-file <local-path> <storage-id-hex> <remote-name> [parent-id]\n");
+  fprintf(stderr, "  mtp-helper get-file <item-id> <local-path>\n");
+  fprintf(stderr, "  mtp-helper create-folder <storage-id-hex> <parent-id> <name>\n");
 }
 
 static LIBMTP_mtpdevice_t *open_device(void) {
@@ -75,7 +77,7 @@ static int list_storages(void) {
   return 0;
 }
 
-static int list_files(const char *storage_id_text) {
+static int list_files(const char *storage_id_text, uint32_t parent_id) {
   uint32_t storage_id = parse_u32(storage_id_text);
   LIBMTP_mtpdevice_t *device = open_device();
   if (device == NULL) {
@@ -85,7 +87,7 @@ static int list_files(const char *storage_id_text) {
   LIBMTP_file_t *files = LIBMTP_Get_Files_And_Folders(
       device,
       storage_id,
-      LIBMTP_FILES_AND_FOLDERS_ROOT
+      parent_id
   );
 
   for (LIBMTP_file_t *file = files; file != NULL; file = file->next) {
@@ -104,7 +106,7 @@ static int list_files(const char *storage_id_text) {
   return 0;
 }
 
-static int send_file(const char *local_path, const char *storage_id_text, const char *remote_name) {
+static int send_file(const char *local_path, const char *storage_id_text, const char *remote_name, uint32_t parent_id) {
   struct stat file_stat;
   if (stat(local_path, &file_stat) != 0) {
     perror("无法读取本地文件");
@@ -121,7 +123,7 @@ static int send_file(const char *local_path, const char *storage_id_text, const 
   metadata->filesize = (uint64_t) file_stat.st_size;
   metadata->filetype = LIBMTP_FILETYPE_UNKNOWN;
   metadata->storage_id = parse_u32(storage_id_text);
-  metadata->parent_id = LIBMTP_FILES_AND_FOLDERS_ROOT;
+  metadata->parent_id = parent_id;
 
   int result = LIBMTP_Send_File_From_File(device, local_path, metadata, NULL, NULL);
   if (result != 0) {
@@ -140,6 +142,34 @@ static int send_file(const char *local_path, const char *storage_id_text, const 
   return 0;
 }
 
+static int get_file(const char *item_id_text, const char *local_path) {
+  LIBMTP_mtpdevice_t *device = open_device();
+  if (device == NULL) return 2;
+  int result = LIBMTP_Get_File_To_File(device, parse_u32(item_id_text), local_path, NULL, NULL);
+  if (result != 0) {
+    LIBMTP_Dump_Errorstack(device);
+    LIBMTP_Release_Device(device);
+    return 6;
+  }
+  printf("OK\t%s\n", local_path);
+  LIBMTP_Release_Device(device);
+  return 0;
+}
+
+static int create_folder(const char *storage_id_text, uint32_t parent_id, char *name) {
+  LIBMTP_mtpdevice_t *device = open_device();
+  if (device == NULL) return 2;
+  uint32_t folder_id = LIBMTP_Create_Folder(device, name, parent_id, parse_u32(storage_id_text));
+  if (folder_id == 0) {
+    LIBMTP_Dump_Errorstack(device);
+    LIBMTP_Release_Device(device);
+    return 7;
+  }
+  printf("FOLDER\t%u\n", folder_id);
+  LIBMTP_Release_Device(device);
+  return 0;
+}
+
 int main(int argc, char **argv) {
   if (argc < 2) {
     print_usage();
@@ -151,19 +181,35 @@ int main(int argc, char **argv) {
   }
 
   if (strcmp(argv[1], "list-files") == 0) {
-    if (argc != 3) {
+    if (argc != 3 && argc != 4) {
       print_usage();
       return 64;
     }
-    return list_files(argv[2]);
+    return list_files(argv[2], argc == 4 ? parse_u32(argv[3]) : LIBMTP_FILES_AND_FOLDERS_ROOT);
   }
 
   if (strcmp(argv[1], "send-file") == 0) {
+    if (argc != 5 && argc != 6) {
+      print_usage();
+      return 64;
+    }
+    return send_file(argv[2], argv[3], argv[4], argc == 6 ? parse_u32(argv[5]) : LIBMTP_FILES_AND_FOLDERS_ROOT);
+  }
+
+  if (strcmp(argv[1], "get-file") == 0) {
+    if (argc != 4) {
+      print_usage();
+      return 64;
+    }
+    return get_file(argv[2], argv[3]);
+  }
+
+  if (strcmp(argv[1], "create-folder") == 0) {
     if (argc != 5) {
       print_usage();
       return 64;
     }
-    return send_file(argv[2], argv[3], argv[4]);
+    return create_folder(argv[2], parse_u32(argv[3]), argv[4]);
   }
 
   print_usage();
