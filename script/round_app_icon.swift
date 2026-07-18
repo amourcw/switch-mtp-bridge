@@ -28,12 +28,13 @@ guard let context = CGContext(
     fatalError("Cannot create bitmap context")
 }
 
-let inset = CGFloat(width) * 0.0024
-let radius = CGFloat(width) * 0.1627
+// Reserve a visual safe zone so the Dock footprint matches standard macOS icons.
+let inset = CGFloat(width) * 0.07
+let radius = CGFloat(width) * 0.15
 let iconRect = CGRect(x: inset, y: inset, width: CGFloat(width) - inset * 2, height: CGFloat(height) - inset * 2)
 context.addPath(CGPath(roundedRect: iconRect, cornerWidth: radius, cornerHeight: radius, transform: nil))
 context.clip()
-context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+context.draw(image, in: iconRect)
 
 guard let result = context.makeImage(),
       let destination = CGImageDestinationCreateWithURL(output as CFURL, UTType.png.identifier as CFString, 1, nil) else {
