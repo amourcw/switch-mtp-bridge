@@ -12,10 +12,17 @@ APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
 APP_CONTENTS="$APP_BUNDLE/Contents"
 APP_MACOS="$APP_CONTENTS/MacOS"
 APP_RESOURCES="$APP_CONTENTS/Resources"
+ASSET_CATALOG="$ROOT_DIR/Assets.xcassets"
 APP_BINARY="$APP_MACOS/$APP_NAME"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
 
 cd "$ROOT_DIR"
+
+ACTOOL_PATH="$(xcrun --find actool 2>/dev/null || true)"
+ICON_NAME_ENTRY=""
+if [[ -n "$ACTOOL_PATH" ]]; then
+  ICON_NAME_ENTRY=$'  <key>CFBundleIconName</key>\n  <string>AppIcon</string>'
+fi
 
 pkill -x "$APP_NAME" >/dev/null 2>&1 || true
 
@@ -30,6 +37,9 @@ mkdir -p "$APP_MACOS" "$APP_RESOURCES"
 cp "$BUILD_BINARY" "$APP_BINARY"
 cp "$HELPER_BINARY" "$APP_MACOS/mtp-helper"
 cp "$ROOT_DIR/Assets/AppIcon.icns" "$APP_RESOURCES/AppIcon.icns"
+if [[ -n "$ACTOOL_PATH" ]]; then
+  "$ACTOOL_PATH" --compile "$APP_RESOURCES" --platform macosx --minimum-deployment-target "$MIN_SYSTEM_VERSION" --app-icon AppIcon "$ASSET_CATALOG"
+fi
 chmod +x "$APP_BINARY"
 chmod +x "$APP_MACOS/mtp-helper"
 
@@ -46,6 +56,7 @@ cat >"$INFO_PLIST" <<PLIST
   <string>$APP_NAME</string>
   <key>CFBundleIconFile</key>
   <string>AppIcon</string>
+$ICON_NAME_ENTRY
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>LSMinimumSystemVersion</key>
