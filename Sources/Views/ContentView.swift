@@ -23,9 +23,9 @@ struct ContentView: View {
                     .disabled(store.isBusy)
                 }
             }
-            .onReceive(Timer.publish(every: 4, on: .main, in: .common).autoconnect()) { _ in
+            .onReceive(Timer.publish(every: 6, on: .main, in: .common).autoconnect()) { _ in
                 guard !store.isBusy, store.device == nil else { return }
-                Task { await store.refreshDevice() }
+                Task { await store.pollForDevice() }
             }
     }
 }

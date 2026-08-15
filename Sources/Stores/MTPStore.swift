@@ -19,6 +19,8 @@ final class MTPStore: ObservableObject {
     @Published var lastRefreshDate: Date?
 
     private let service = MTPCommandService()
+    private var lastRefreshAttempt: Date?
+    private var consecutiveRefreshFailures = 0
 
     init() {
         refreshLocalFiles()
@@ -28,6 +30,7 @@ final class MTPStore: ObservableObject {
     func refreshDevice() async {
         isBusy = true
         defer { isBusy = false }
+        lastRefreshAttempt = Date()
         appendLog("正在检查 libmtp 工具...")
         toolStatus = await service.toolStatus()
         guard case .available = toolStatus else {
@@ -36,42 +39,48 @@ final class MTPStore: ObservableObject {
             return
         }
 
-        appendLog("正在查找 MTP 设备...")
-        let result = await service.detectDevice()
+        appendLog("正在连接 MTP 设备...")
+        let result = await service.refresh(currentStorageID: selectedStorageID)
         let text = result.combinedOutput
         lastRefreshDate = Date()
-        guard result.exitCode == 0 && MTPOutputParser.hasDetectedDevice(in: text) else {
+        guard MTPOutputParser.hasDetectedDevice(in: text) else {
+            consecutiveRefreshFailures += 1
             clearDevice()
             appendLog("未检测到 MTP 设备。")
             if !text.isEmpty { appendLog(MTPOutputParser.shortFailureMessage(from: text)) }
             return
         }
 
+        consecutiveRefreshFailures = 0
+        let newStorages = MTPHelperParser.storages(from: text)
         device = DeviceSnapshot(summary: MTPOutputParser.deviceSummary(from: text), rawDetails: text)
+        storages = newStorages
+        selectedStorageID = preferredStorageID(from: newStorages, current: selectedStorageID)
+        mtpPath = []
+        files = sortedFiles(MTPHelperParser.files(from: text))
+        selectedMTPIDs = []
         appendLog("已连接 MTP 设备。")
-        await refreshStoragesAndFiles()
     }
 
-    func refreshStoragesAndFiles() async {
-        let result = await service.listStorages()
-        guard result.exitCode == 0 else {
-            appendLog("读取设备存储区失败：\(result.combinedOutput)")
+    /// 轻量探测：仅枚举 USB，不打开 MTP 会话；发现设备存在后才执行完整刷新。
+    /// 连续失败后自动退避，避免在设备被其他程序占用时反复触发会话开/关。
+    func pollForDevice() async {
+        guard !isBusy else { return }
+        if consecutiveRefreshFailures >= 2,
+           let last = lastRefreshAttempt,
+           Date().timeIntervalSince(last) < 30 {
             return
         }
-        storages = MTPHelperParser.storages(from: result.output)
-        selectedStorageID = preferredStorageID(from: storages, current: selectedStorageID)
-        mtpPath = []
-        await refreshFiles()
+        let result = await service.probe()
+        guard result.exitCode == 0 else { return }
+        await refreshDevice()
     }
 
     func refreshFiles() async {
         guard !selectedStorageID.isEmpty else { files = []; return }
         let result = await service.listFiles(storageID: selectedStorageID, parentID: currentMTPParentID)
         if result.exitCode == 0 {
-            files = MTPHelperParser.files(from: result.output).sorted { lhs, rhs in
-                if lhs.isFolder != rhs.isFolder { return lhs.isFolder }
-                return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
-            }
+            files = sortedFiles(MTPHelperParser.files(from: result.output))
             selectedMTPIDs = []
         } else {
             files = []
@@ -255,6 +264,12 @@ final class MTPStore: ObservableObject {
 
     private func clearDevice() { device = nil; storages = []; selectedStorageID = ""; files = []; mtpPath = [] }
     private func isRetryable(_ status: TransferStatus) -> Bool { if case .failed = status { return true }; return false }
+    private func sortedFiles(_ items: [MTPFileItem]) -> [MTPFileItem] {
+        items.sorted { lhs, rhs in
+            if lhs.isFolder != rhs.isFolder { return lhs.isFolder }
+            return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+        }
+    }
     private func preferredStorageID(from storages: [MTPStorage], current: String) -> String {
         if storages.contains(where: { $0.id == current }) { return current }
         if let install = storages.first(where: { $0.name.localizedCaseInsensitiveContains("SD Card install") }) { return install.id }
